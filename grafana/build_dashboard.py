@@ -84,8 +84,11 @@ routes = stat(3, "Active default routes", (16, 0, 8, 3), [route_query])
 routes["fieldConfig"]["defaults"]["decimals"] = 0
 routes["fieldConfig"]["defaults"]["mappings"] = [value_mapping([(-1, "Unknown", "orange")])]
 
+for overview in (collection, age, routes):
+    overview["options"]["textMode"] = "value"
+
 connection_query = (source("connection", "state_code", FRESH, wan=True)
-                    + '  |> group(columns: ["wan"]) |> last()\n'
+                    + '  |> group(columns: ["wan"]) |> sort(columns: ["_time"]) |> last()\n'
                     '  |> map(fn: (r) => ({r with _field: "Connection"}))\n'
                     '  |> keep(columns: ["_time", "_value", "_field", "wan"])\n')
 connection_query += '  |> rename(columns: {_value: "Connection"})\n'

@@ -16,7 +16,11 @@ def connection(snapshot, wan):
             return "unknown"
         if "status" not in client:
             return "unknown"
-        return "up" if client.get("status") == "bound" and not yes(client.get("disabled")) else "down"
+        status = str(client["status"]).rstrip(".")
+        has_lease = status == "bound" or (
+            status in {"renewing", "rebinding"} and bool(client.get("address"))
+        )
+        return "up" if has_lease and not yes(client.get("disabled")) else "down"
     if wan["kind"] == "pppoe":
         client = next((r for r in snapshot["pppoe"] if r.get("name") == wan["interface"]), None)
         if client is None:

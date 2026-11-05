@@ -39,6 +39,15 @@ def test_missing_interface_unknown(snapshot, wan):
     assert connection(snapshot, dict(wan, interface="absent")) == "unknown"
 
 
+@pytest.mark.parametrize("status", ["renewing...", "rebinding..."])
+def test_dhcp_keeps_connection_during_lease_renewal(snapshot, wan, status):
+    client = snapshot["dhcp"][0]
+    client["status"] = status
+    assert connection(snapshot, wan) == "down"
+    client["address"] = "192.0.2.2/24"
+    assert connection(snapshot, wan) == "up"
+
+
 def test_missing_operational_fields_unknown(snapshot, wan):
     del snapshot["interfaces"][0]["running"]
     assert connection(snapshot, wan) == "unknown"

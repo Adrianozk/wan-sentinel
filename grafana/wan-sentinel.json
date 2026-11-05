@@ -133,7 +133,7 @@
           "fields": ""
         },
         "orientation": "auto",
-        "textMode": "value_and_name",
+        "textMode": "value",
         "colorMode": "value",
         "graphMode": "none",
         "justifyMode": "auto",
@@ -191,7 +191,7 @@
           "fields": ""
         },
         "orientation": "auto",
-        "textMode": "value_and_name",
+        "textMode": "value",
         "colorMode": "value",
         "graphMode": "none",
         "justifyMode": "auto",
@@ -261,7 +261,7 @@
           "fields": ""
         },
         "orientation": "auto",
-        "textMode": "value_and_name",
+        "textMode": "value",
         "colorMode": "value",
         "graphMode": "none",
         "justifyMode": "auto",
@@ -289,7 +289,7 @@
       "targets": [
         {
           "refId": "A",
-          "query": "from(bucket: \"${bucket}\")\n  |> range(start: -${freshness}, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"wan_sentinel\" and r.scope == \"connection\" and r._field == \"state_code\")\n  |> filter(fn: (r) => r.wan =~ /^${wan:regex}$/)\n  |> group(columns: [\"wan\"]) |> last()\n  |> map(fn: (r) => ({r with _field: \"Connection\"}))\n  |> keep(columns: [\"_time\", \"_value\", \"_field\", \"wan\"])\n  |> rename(columns: {_value: \"Connection\"})\n",
+          "query": "from(bucket: \"${bucket}\")\n  |> range(start: -${freshness}, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"wan_sentinel\" and r.scope == \"connection\" and r._field == \"state_code\")\n  |> filter(fn: (r) => r.wan =~ /^${wan:regex}$/)\n  |> group(columns: [\"wan\"]) |> sort(columns: [\"_time\"]) |> last()\n  |> map(fn: (r) => ({r with _field: \"Connection\"}))\n  |> keep(columns: [\"_time\", \"_value\", \"_field\", \"wan\"])\n  |> rename(columns: {_value: \"Connection\"})\n",
           "datasource": {
             "type": "influxdb",
             "uid": "${DS_INFLUXDB}"
