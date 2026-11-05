@@ -1,0 +1,13 @@
+services:
+  sentinel:
+    image: ghcr.io/adrianozk/wan-sentinel:latest
+    restart: unless-stopped
+    env_file: .env
+    user: "65532:65532"
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    read_only: true
+    volumes:
+      - ./config.yaml:/config/config.yaml:ro
+    tmpfs:
+      - /tmp

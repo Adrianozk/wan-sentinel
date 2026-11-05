@@ -1,0 +1,15 @@
+.env
+.env.*
+!.env.example
+config.yaml
+*.pem
+*.key
+*.crt
+*.p12
+*.pfx
+.venv/
+__pycache__/
+.pytest_cache/
+*.egg-info/
+dist/
+build/

@@ -1,0 +1,26 @@
+interval: 30
+probes:
+  backend: routeros
+  enabled: false
+  isolation_validated: false
+  # Confirm syntax on the exact RouterOS version. No automatic fallback.
+  binding: address-interface
+router:
+  url: ${ROUTEROS_URL}
+  username: ${ROUTEROS_USERNAME}
+  password: ${ROUTEROS_PASSWORD}
+  # ca_bundle: /config/router-ca.pem
+influx:
+  url: ${INFLUX_URL}
+  org: ${INFLUX_ORG}
+  bucket: ${INFLUX_BUCKET}
+  token: ${INFLUX_WRITE_TOKEN}
+wans:
+  - name: primary
+    kind: pppoe
+    interface: pppoe-out1
+    targets: ["1.1.1.1", "8.8.8.8"]
+  - name: secondary
+    kind: dhcp
+    interface: ether2
+    targets: ["1.1.1.1", "8.8.8.8"]

@@ -1,0 +1,722 @@
+{
+  "__inputs": [
+    {
+      "name": "DS_INFLUXDB",
+      "label": "InfluxDB (Flux)",
+      "type": "datasource",
+      "pluginId": "influxdb",
+      "pluginName": "InfluxDB"
+    }
+  ],
+  "title": "WAN Sentinel",
+  "uid": "wan-sentinel",
+  "schemaVersion": 39,
+  "version": 1,
+  "description": "Read-only multi-WAN observability. Connection, collection and probe states are independent. Null probe metrics remain blank.",
+  "tags": [
+    "wan-sentinel",
+    "routeros"
+  ],
+  "timezone": "browser",
+  "refresh": "30s",
+  "time": {
+    "from": "now-30m",
+    "to": "now"
+  },
+  "templating": {
+    "list": [
+      {
+        "name": "bucket",
+        "type": "textbox",
+        "label": "Bucket",
+        "query": "wan-sentinel",
+        "current": {
+          "text": "wan-sentinel",
+          "value": "wan-sentinel"
+        }
+      },
+      {
+        "name": "freshness",
+        "type": "textbox",
+        "label": "Max sample age",
+        "query": "90s",
+        "current": {
+          "text": "90s",
+          "value": "90s"
+        }
+      },
+      {
+        "name": "wan",
+        "type": "query",
+        "label": "WAN",
+        "datasource": {
+          "type": "influxdb",
+          "uid": "${DS_INFLUXDB}"
+        },
+        "query": "import \"influxdata/influxdb/schema\"\nschema.tagValues(bucket: \"${bucket}\", tag: \"wan\", predicate: (r) => r._measurement == \"wan_sentinel\" and r.scope == \"connection\")",
+        "definition": "import \"influxdata/influxdb/schema\"\nschema.tagValues(bucket: \"${bucket}\", tag: \"wan\", predicate: (r) => r._measurement == \"wan_sentinel\" and r.scope == \"connection\")",
+        "multi": true,
+        "includeAll": true,
+        "allValue": ".*",
+        "refresh": 1,
+        "sort": 1,
+        "options": [],
+        "current": {
+          "text": "All",
+          "value": "$__all"
+        }
+      }
+    ]
+  },
+  "panels": [
+    {
+      "id": 1,
+      "title": "RouterOS collection",
+      "type": "stat",
+      "datasource": {
+        "type": "influxdb",
+        "uid": "${DS_INFLUXDB}"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 0,
+        "w": 8,
+        "h": 3
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "query": "from(bucket: \"${bucket}\")\n  |> range(start: -${freshness}, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"wan_sentinel\" and r.scope == \"collector\" and r._field == \"collection_ok\")\n  |> group(columns: []) |> last()\n",
+          "datasource": {
+            "type": "influxdb",
+            "uid": "${DS_INFLUXDB}"
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "noValue": "No recent sample",
+          "decimals": 1,
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "spanNulls": false
+          },
+          "mappings": [
+            {
+              "type": "value",
+              "options": {
+                "0": {
+                  "text": "Collection failed",
+                  "color": "red",
+                  "index": 0
+                },
+                "1": {
+                  "text": "Collection healthy",
+                  "color": "green",
+                  "index": 1
+                }
+              }
+            }
+          ]
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "values": false,
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": ""
+        },
+        "orientation": "auto",
+        "textMode": "value_and_name",
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "auto",
+        "wideLayout": false,
+        "text": {
+          "titleSize": 12,
+          "valueSize": 25
+        }
+      }
+    },
+    {
+      "id": 2,
+      "title": "Last successful sample",
+      "type": "stat",
+      "datasource": {
+        "type": "influxdb",
+        "uid": "${DS_INFLUXDB}"
+      },
+      "gridPos": {
+        "x": 8,
+        "y": 0,
+        "w": 8,
+        "h": 3
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "query": "from(bucket: \"${bucket}\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"wan_sentinel\" and r.scope == \"collector\" and r._field == \"collection_ok\")\n  |> filter(fn: (r) => r._value == 1.0)\n  |> group(columns: []) |> last()\n  |> map(fn: (r) => ({r with _field: \"Age\", _value: float(v: uint(v: now()) - uint(v: r._time)) / 1000000000.0}))\n",
+          "datasource": {
+            "type": "influxdb",
+            "uid": "${DS_INFLUXDB}"
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "noValue": "\u2014",
+          "decimals": 1,
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "spanNulls": false
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "values": false,
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": ""
+        },
+        "orientation": "auto",
+        "textMode": "value_and_name",
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "auto",
+        "wideLayout": false,
+        "text": {
+          "titleSize": 12,
+          "valueSize": 25
+        }
+      }
+    },
+    {
+      "id": 3,
+      "title": "Active default routes",
+      "type": "stat",
+      "datasource": {
+        "type": "influxdb",
+        "uid": "${DS_INFLUXDB}"
+      },
+      "gridPos": {
+        "x": 16,
+        "y": 0,
+        "w": 8,
+        "h": 3
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "query": "from(bucket: \"${bucket}\")\n  |> range(start: -${freshness}, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"wan_sentinel\" and ((r.scope == \"routes\" and r._field == \"active_default_routes\") or (r.scope == \"collector\" and r._field == \"collection_ok\" and r._value == 0.0)))\n  |> map(fn: (r) => ({r with _field: \"Active defaults\", _value: if r.scope == \"collector\" then -1.0 else r._value}))\n  |> group(columns: []) |> last()\n",
+          "datasource": {
+            "type": "influxdb",
+            "uid": "${DS_INFLUXDB}"
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "noValue": "\u2014",
+          "decimals": 0,
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "spanNulls": false
+          },
+          "mappings": [
+            {
+              "type": "value",
+              "options": {
+                "-1": {
+                  "text": "Unknown",
+                  "color": "orange",
+                  "index": 0
+                }
+              }
+            }
+          ]
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "values": false,
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": ""
+        },
+        "orientation": "auto",
+        "textMode": "value_and_name",
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "auto",
+        "wideLayout": false,
+        "text": {
+          "titleSize": 12,
+          "valueSize": 25
+        }
+      }
+    },
+    {
+      "id": 4,
+      "title": "${wan}",
+      "type": "stat",
+      "datasource": {
+        "type": "influxdb",
+        "uid": "${DS_INFLUXDB}"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 3,
+        "w": 12,
+        "h": 6
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "query": "from(bucket: \"${bucket}\")\n  |> range(start: -${freshness}, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"wan_sentinel\" and r.scope == \"connection\" and r._field == \"state_code\")\n  |> filter(fn: (r) => r.wan =~ /^${wan:regex}$/)\n  |> group(columns: [\"wan\"]) |> last()\n  |> map(fn: (r) => ({r with _field: \"Connection\"}))\n  |> keep(columns: [\"_time\", \"_value\", \"_field\", \"wan\"])\n  |> rename(columns: {_value: \"Connection\"})\n",
+          "datasource": {
+            "type": "influxdb",
+            "uid": "${DS_INFLUXDB}"
+          }
+        },
+        {
+          "refId": "B",
+          "query": "import \"internal/debug\"\nfrom(bucket: \"${bucket}\")\n  |> range(start: -${freshness}, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"wan_sentinel\" and r.scope == \"probe\" and r.wan =~ /^${wan:regex}$/)\n  |> filter(fn: (r) => r._field == \"probe_ok\" or r._field == \"available\")\n  |> group(columns: [\"wan\", \"target\"])\n  |> pivot(rowKey: [\"_time\"], columnKey: [\"_field\"], valueColumn: \"_value\")\n  |> sort(columns: [\"_time\"], desc: true) |> limit(n: 1)\n  |> map(fn: (r) => ({r with _field: \"Reachability\", _value: if exists r.probe_ok and r.probe_ok == 1.0 and exists r.available then r.available else -1.0}))\n  |> keep(columns: [\"_time\", \"_value\", \"_field\", \"wan\", \"target\", \"_start\", \"_stop\"])\n  |> group(columns: [\"wan\", \"target\", \"_field\"])\n  |> rename(columns: {_value: \"Reachability\"})\n",
+          "datasource": {
+            "type": "influxdb",
+            "uid": "${DS_INFLUXDB}"
+          }
+        },
+        {
+          "refId": "C",
+          "query": "import \"internal/debug\"\nfrom(bucket: \"${bucket}\")\n  |> range(start: -${freshness}, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"wan_sentinel\" and r.scope == \"probe\" and r.wan =~ /^${wan:regex}$/)\n  |> filter(fn: (r) => r._field == \"probe_ok\" or r._field == \"latency_ms\")\n  |> group(columns: [\"wan\", \"target\"])\n  |> pivot(rowKey: [\"_time\"], columnKey: [\"_field\"], valueColumn: \"_value\")\n  |> sort(columns: [\"_time\"], desc: true) |> limit(n: 1)\n  |> map(fn: (r) => ({r with _field: \"RTT\", _value: if exists r.probe_ok and r.probe_ok == 1.0 and exists r.latency_ms then r.latency_ms else debug.null(type: \"float\")}))\n  |> keep(columns: [\"_time\", \"_value\", \"_field\", \"wan\", \"target\", \"_start\", \"_stop\"])\n  |> group(columns: [\"wan\", \"target\", \"_field\"])\n  |> rename(columns: {_value: \"RTT\"})\n",
+          "datasource": {
+            "type": "influxdb",
+            "uid": "${DS_INFLUXDB}"
+          }
+        },
+        {
+          "refId": "D",
+          "query": "import \"internal/debug\"\nfrom(bucket: \"${bucket}\")\n  |> range(start: -${freshness}, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"wan_sentinel\" and r.scope == \"probe\" and r.wan =~ /^${wan:regex}$/)\n  |> filter(fn: (r) => r._field == \"probe_ok\" or r._field == \"jitter_ms\")\n  |> group(columns: [\"wan\", \"target\"])\n  |> pivot(rowKey: [\"_time\"], columnKey: [\"_field\"], valueColumn: \"_value\")\n  |> sort(columns: [\"_time\"], desc: true) |> limit(n: 1)\n  |> map(fn: (r) => ({r with _field: \"Jitter\", _value: if exists r.probe_ok and r.probe_ok == 1.0 and exists r.jitter_ms then r.jitter_ms else debug.null(type: \"float\")}))\n  |> keep(columns: [\"_time\", \"_value\", \"_field\", \"wan\", \"target\", \"_start\", \"_stop\"])\n  |> group(columns: [\"wan\", \"target\", \"_field\"])\n  |> rename(columns: {_value: \"Jitter\"})\n",
+          "datasource": {
+            "type": "influxdb",
+            "uid": "${DS_INFLUXDB}"
+          }
+        },
+        {
+          "refId": "E",
+          "query": "import \"internal/debug\"\nfrom(bucket: \"${bucket}\")\n  |> range(start: -${freshness}, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"wan_sentinel\" and r.scope == \"probe\" and r.wan =~ /^${wan:regex}$/)\n  |> filter(fn: (r) => r._field == \"probe_ok\" or r._field == \"loss_pct\")\n  |> group(columns: [\"wan\", \"target\"])\n  |> pivot(rowKey: [\"_time\"], columnKey: [\"_field\"], valueColumn: \"_value\")\n  |> sort(columns: [\"_time\"], desc: true) |> limit(n: 1)\n  |> map(fn: (r) => ({r with _field: \"Loss\", _value: if exists r.probe_ok and r.probe_ok == 1.0 and exists r.loss_pct then r.loss_pct else debug.null(type: \"float\")}))\n  |> keep(columns: [\"_time\", \"_value\", \"_field\", \"wan\", \"target\", \"_start\", \"_stop\"])\n  |> group(columns: [\"wan\", \"target\", \"_field\"])\n  |> rename(columns: {_value: \"Loss\"})\n",
+          "datasource": {
+            "type": "influxdb",
+            "uid": "${DS_INFLUXDB}"
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "noValue": "\u2014",
+          "decimals": 1,
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "spanNulls": false
+          },
+          "displayName": "${__field.name}"
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Connection"
+            },
+            "properties": [
+              {
+                "id": "mappings",
+                "value": [
+                  {
+                    "type": "value",
+                    "options": {
+                      "-1": {
+                        "text": "Unknown",
+                        "color": "orange",
+                        "index": 0
+                      },
+                      "0": {
+                        "text": "Down",
+                        "color": "red",
+                        "index": 1
+                      },
+                      "1": {
+                        "text": "Connected",
+                        "color": "green",
+                        "index": 2
+                      }
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Reachability"
+            },
+            "properties": [
+              {
+                "id": "mappings",
+                "value": [
+                  {
+                    "type": "value",
+                    "options": {
+                      "-1": {
+                        "text": "Probe blocked",
+                        "color": "orange",
+                        "index": 0
+                      },
+                      "0": {
+                        "text": "Unreachable",
+                        "color": "red",
+                        "index": 1
+                      },
+                      "1": {
+                        "text": "Reachable",
+                        "color": "green",
+                        "index": 2
+                      }
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "RTT"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "ms"
+              },
+              {
+                "id": "displayName",
+                "value": "RTT \u00b7 ${__field.labels.target}"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Jitter"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "ms"
+              },
+              {
+                "id": "displayName",
+                "value": "Jitter \u00b7 ${__field.labels.target}"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Loss"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "percent"
+              },
+              {
+                "id": "displayName",
+                "value": "Loss \u00b7 ${__field.labels.target}"
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "reduceOptions": {
+          "values": false,
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": ""
+        },
+        "orientation": "auto",
+        "textMode": "value_and_name",
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "auto",
+        "wideLayout": false,
+        "text": {
+          "titleSize": 12,
+          "valueSize": 25
+        }
+      },
+      "repeat": "wan",
+      "repeatDirection": "h",
+      "maxPerRow": 2,
+      "description": "Connection, target reachability and RTT are independent. Blocked probes leave RTT/jitter/loss blank. Freshness limits old samples."
+    },
+    {
+      "id": 5,
+      "title": "Connection quality \u00b7 ${wan}",
+      "type": "timeseries",
+      "datasource": {
+        "type": "influxdb",
+        "uid": "${DS_INFLUXDB}"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 9,
+        "w": 24,
+        "h": 11
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "query": "import \"internal/debug\"\nfrom(bucket: \"${bucket}\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"wan_sentinel\" and r.scope == \"probe\" and r.wan =~ /^${wan:regex}$/)\n  |> filter(fn: (r) => r._field == \"probe_ok\" or r._field == \"latency_ms\")\n  |> group(columns: [\"wan\", \"target\"])\n  |> pivot(rowKey: [\"_time\"], columnKey: [\"_field\"], valueColumn: \"_value\")\n  |> map(fn: (r) => ({r with _field: \"Latency\", _value: if exists r.probe_ok and r.probe_ok == 1.0 and exists r.latency_ms then r.latency_ms else debug.null(type: \"float\")}))\n  |> keep(columns: [\"_time\", \"_value\", \"_field\", \"wan\", \"target\", \"_start\", \"_stop\"])\n  |> group(columns: [\"wan\", \"target\", \"_field\"])\n  |> aggregateWindow(every: if uint(v: v.windowPeriod) < uint(v: 1m) then 1m else v.windowPeriod, fn: mean, createEmpty: true)\n",
+          "datasource": {
+            "type": "influxdb",
+            "uid": "${DS_INFLUXDB}"
+          }
+        },
+        {
+          "refId": "B",
+          "query": "import \"internal/debug\"\nfrom(bucket: \"${bucket}\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"wan_sentinel\" and r.scope == \"probe\" and r.wan =~ /^${wan:regex}$/)\n  |> filter(fn: (r) => r._field == \"probe_ok\" or r._field == \"jitter_ms\")\n  |> group(columns: [\"wan\", \"target\"])\n  |> pivot(rowKey: [\"_time\"], columnKey: [\"_field\"], valueColumn: \"_value\")\n  |> map(fn: (r) => ({r with _field: \"Jitter\", _value: if exists r.probe_ok and r.probe_ok == 1.0 and exists r.jitter_ms then r.jitter_ms else debug.null(type: \"float\")}))\n  |> keep(columns: [\"_time\", \"_value\", \"_field\", \"wan\", \"target\", \"_start\", \"_stop\"])\n  |> group(columns: [\"wan\", \"target\", \"_field\"])\n  |> aggregateWindow(every: if uint(v: v.windowPeriod) < uint(v: 1m) then 1m else v.windowPeriod, fn: mean, createEmpty: true)\n",
+          "datasource": {
+            "type": "influxdb",
+            "uid": "${DS_INFLUXDB}"
+          }
+        },
+        {
+          "refId": "C",
+          "query": "import \"internal/debug\"\nfrom(bucket: \"${bucket}\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"wan_sentinel\" and r.scope == \"probe\" and r.wan =~ /^${wan:regex}$/)\n  |> filter(fn: (r) => r._field == \"probe_ok\" or r._field == \"loss_pct\")\n  |> group(columns: [\"wan\", \"target\"])\n  |> pivot(rowKey: [\"_time\"], columnKey: [\"_field\"], valueColumn: \"_value\")\n  |> map(fn: (r) => ({r with _field: \"Packet loss\", _value: if exists r.probe_ok and r.probe_ok == 1.0 and exists r.loss_pct then r.loss_pct else debug.null(type: \"float\")}))\n  |> keep(columns: [\"_time\", \"_value\", \"_field\", \"wan\", \"target\", \"_start\", \"_stop\"])\n  |> group(columns: [\"wan\", \"target\", \"_field\"])\n  |> aggregateWindow(every: if uint(v: v.windowPeriod) < uint(v: 1m) then 1m else v.windowPeriod, fn: mean, createEmpty: true)\n",
+          "datasource": {
+            "type": "influxdb",
+            "uid": "${DS_INFLUXDB}"
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ms",
+          "noValue": "\u2014",
+          "decimals": 1,
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "spanNulls": false,
+            "lineWidth": 1,
+            "fillOpacity": 8,
+            "showPoints": "auto",
+            "pointSize": 3
+          },
+          "min": 0,
+          "displayName": "${__field.labels._field} \u00b7 ${__field.labels.target}"
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byFrameRefID",
+              "options": "A"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "Latency \u00b7 ${__field.labels.target}"
+              },
+              {
+                "id": "unit",
+                "value": "ms"
+              },
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "green"
+                }
+              },
+              {
+                "id": "custom.axisPlacement",
+                "value": "left"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byFrameRefID",
+              "options": "B"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "Jitter \u00b7 ${__field.labels.target}"
+              },
+              {
+                "id": "unit",
+                "value": "ms"
+              },
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "orange"
+                }
+              },
+              {
+                "id": "custom.axisPlacement",
+                "value": "left"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byFrameRefID",
+              "options": "C"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "Packet loss \u00b7 ${__field.labels.target}"
+              },
+              {
+                "id": "unit",
+                "value": "percent"
+              },
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "red"
+                }
+              },
+              {
+                "id": "custom.axisPlacement",
+                "value": "right"
+              }
+            ]
+          }
+        ]
+      },
+      "repeat": "wan",
+      "repeatDirection": "v",
+      "description": "Latency and jitter use the left axis. Packet loss uses the right axis. Gaps indicate unavailable measurements.",
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "mean",
+            "max",
+            "min"
+          ],
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "none"
+        }
+      }
+    },
+    {
+      "id": 8,
+      "title": "Connection history",
+      "type": "state-timeline",
+      "datasource": {
+        "type": "influxdb",
+        "uid": "${DS_INFLUXDB}"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 20,
+        "w": 24,
+        "h": 5
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "query": "from(bucket: \"${bucket}\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"wan_sentinel\" and r.scope == \"connection\" and r._field == \"state_code\")\n  |> filter(fn: (r) => r.wan =~ /^${wan:regex}$/)\n  |> group(columns: [\"wan\"])\n  |> aggregateWindow(every: v.windowPeriod, fn: last, createEmpty: false)\n  |> keep(columns: [\"_time\", \"_value\", \"wan\"])\n",
+          "datasource": {
+            "type": "influxdb",
+            "uid": "${DS_INFLUXDB}"
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "noValue": "\u2014",
+          "decimals": 1,
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "spanNulls": false
+          },
+          "displayName": "${__field.labels.wan}",
+          "mappings": [
+            {
+              "type": "value",
+              "options": {
+                "-1": {
+                  "text": "Unknown",
+                  "color": "orange",
+                  "index": 0
+                },
+                "0": {
+                  "text": "Down",
+                  "color": "red",
+                  "index": 1
+                },
+                "1": {
+                  "text": "Connected",
+                  "color": "green",
+                  "index": 2
+                }
+              }
+            }
+          ]
+        },
+        "overrides": []
+      },
+      "options": {
+        "mergeValues": true,
+        "showValue": "auto",
+        "rowHeight": 0.8,
+        "alignValue": "left",
+        "legend": {
+          "displayMode": "hidden"
+        },
+        "tooltip": {
+          "mode": "single"
+        }
+      }
+    }
+  ]
+}
